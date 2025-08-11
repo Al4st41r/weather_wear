@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>What Should I Wear Today?</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #fff;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #222;
+  }
+  header {
+    text-align: center;
+    padding: 1em;
+    font-size: 1.5em;
+    font-weight: bold;
+  }
+  .card {
+    max-width: 400px;
+    width: 90%;
+    background: #fafafa;
+    border-radius: 10px;
+    padding: 1em;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 1em;
+    text-align: center;
+    transition: opacity 0.5s ease;
+  }
+  .weather-icon, .clothing-icon {
+    width: 50px;
+    height: 50px;
+    margin: 0.5em;
+  }
+  .icons-row {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  input {
+    padding: 0.5em;
+    font-size: 1em;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    margin: 0.5em;
+  }
+  button {
+    padding: 0.5em 1em;
+    font-size: 1em;
+    border-radius: 5px;
+    border: none;
+    background: #000;
+    color: #fff;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<header>What Should I Wear Today?</header>
+
+<div class="card" id="weather-card">
+  <p>Detecting your location and fetching weather...</p>
+</div>
+
+<div class="card" id="clothing-card">
+  <p>Loading recommendations...</p>
+</div>
+
+<div class="card">
+  <p>Or enter location manually:</p>
+  <input type="text" id="manual-location" placeholder="City name..." />
+  <button onclick="getWeatherManual()">Check</button>
+</div>
+
+<script>
+// SVG Icons (same as before, shortened here for brevity)
+const icons = {
+  sun: `<svg class="weather-icon" viewBox="0 0 64 64" fill="none" stroke="black" stroke-width="2"><circle cx="32" cy="32" r="12"/></svg>`,
+  cloud: `<svg class="weather-icon" viewBox="0 0 64 64" fill="none" stroke="black" stroke-width="2"><path d="M20 40a12 12 0 1 1 0-24"/></svg>`,
+  rain: `<svg class="weather-icon" viewBox="0 0 64 64" fill="none" stroke="black" stroke-width="2"><line x1="20" y1="48" x2="20" y2="60"/></svg>`,
+  snow: `<svg class="weather-icon" viewBox="0 0 64 64" fill="none" stroke="black" stroke-width="2"><circle cx="32" cy="32" r="4"/></svg>`,
+  tshirt: `<svg class="clothing-icon" viewBox="0 0 64 64" fill="none" stroke="black" stroke-width="2"><path d="M16 12l8-8h16l8 8v8H16v-8z"/></svg>`,
+  jumper: `<svg class="clothing-icon" viewBox="0 0 64 64" fill="none" stroke="black" stroke-width="2"><rect x="16" y="12" width="32" height="40" rx="4"/></svg>`,
+  coat: `<svg class="clothing-icon" viewBox="0 0 64 64" fill="none" stroke="black" stroke-width="2"><path d="M16 12h32v40H16z"/></svg>`,
+  raincoat: `<svg class="clothing-icon" viewBox="0 0 64 64" fill="none" stroke="black" stroke-width="2"><path d="M20 12h24l8 20H12l8-20z"/></svg>`,
+  scarf: `<svg class="clothing-icon" viewBox="0 0 64 64" fill="none" stroke="black" stroke-width="2"><rect x="24" y="12" width="16" height="28"/></svg>`,
+  gloves: `<svg class="clothing-icon" viewBox="0 0 64 64" fill="none" stroke="black" stroke-width="2"><rect x="18" y="32" width="28" height="20" rx="4"/></svg>`
+};
+
+const workerUrl = "https://weather-proxy.alastairogle.workers.dev"; // Cloudflare Worker URL
+
+function getWeatherByCoords(lat, lon) {
+  Promise.all([
+    fetch(`${workerUrl}?endpoint=weather&params=lat=${lat}&lon=${lon}`).then(r=>r.json()),
+    fetch(`${workerUrl}?endpoint=forecast&params=lat=${lat}&lon=${lon}`).then(r=>r.json())
+  ]).then(([current, forecast]) => showWeather(current, forecast));
+}
+
+function getWeatherManual() {
+  const city = document.getElementById("manual-location").value;
+  Promise.all([
+    fetch(`${workerUrl}?endpoint=weather&params=q=${city}`).then(r=>r.json()),
+    fetch(`${workerUrl}?endpoint=forecast&params=q=${city}`).then(r=>r.json())
+  ]).then(([current, forecast]) => showWeather(current, forecast));
+}
+
+function showWeather(current, forecast) {
+  const weatherCard = document.getElementById("weather-card");
+  const clothingCard = document.getElementById("clothing-card");
+
+  if (!current.main) {
+    weatherCard.innerHTML = "<p>Location not found.</p>";
+    clothingCard.innerHTML = "<p>No recommendations available.</p>";
+    return;
+  }
+
+  const temp = current.main.temp;
+  const feelsLike = current.main.feels_like;
+  const humidity = current.main.humidity;
+  const wind = current.wind.speed;
+  const cond = current.weather[0].main.toLowerCase();
+
+  // Check next 3 hours for rain/snow
+  const upcomingWet = forecast.list.slice(0, 2).some(f => {
+    const w = f.weather[0].main.toLowerCase();
+    return w.includes("rain") || w.includes("snow");
+  });
+
+  const wet = cond.includes("rain") || cond.includes("snow") || humidity > 85 || upcomingWet;
+  const windy = wind > 5;
+
+  let weatherIcon = icons.cloud;
+  if (cond.includes("rain")) weatherIcon = icons.rain;
+  else if (cond.includes("snow")) weatherIcon = icons.snow;
+  else if (cond.includes("clear")) weatherIcon = icons.sun;
+
+  weatherCard.innerHTML = `
+    <div>${weatherIcon}</div>
+    <p>${current.name}: ${feelsLike.toFixed(1)}°C (feels like)</p>
+    <p>${cond}, Humidity: ${humidity}% Wind: ${wind} m/s</p>
+  `;
+
+  const layers = recommendClothing(feelsLike, wet, windy);
+
+  clothingCard.innerHTML = `
+    <div class="icons-row">${layers.icons.join("")}</div>
+    <p>${layers.text}</p>
+  `;
+}
+
+function recommendClothing(temp, wet, windy) {
+  let iconsArr = [];
+  let text = "";
+
+  if (temp <= 0) {
+    iconsArr = [icons.tshirt, icons.jumper, icons.coat, icons.scarf, icons.gloves];
+    if (wet) iconsArr[2] = icons.raincoat;
+    text = "Thermal base, thick jumper, heavy coat, scarf, gloves.";
+  } else if (temp <= 5) {
+    iconsArr = [icons.tshirt, icons.jumper, icons.coat, icons.scarf];
+    if (wet) iconsArr[2] = icons.raincoat;
+    text = "Base layer, jumper, coat, scarf.";
+  } else if (temp <= 10) {
+    iconsArr = [icons.tshirt, icons.jumper, wet ? icons.raincoat : icons.coat];
+    text = "Jumper with coat" + (wet ? " (waterproof)" : "") + ".";
+  } else if (temp <= 15) {
+    iconsArr = [icons.tshirt, icons.jumper];
+    if (wet) iconsArr.push(icons.raincoat);
+    text = "Jumper" + (wet ? " with waterproof" : "") + ".";
+  } else if (temp <= 20) {
+    iconsArr = [icons.tshirt];
+    if (wet) iconsArr.push(icons.raincoat);
+    text = "T-shirt" + (wet ? " with light waterproof" : "") + ".";
+  } else {
+    iconsArr = [icons.tshirt];
+    text = "Light clothing — enjoy the warmth.";
+  }
+
+  if (windy && temp < 15) {
+    text += " It's windy — consider an extra layer.";
+  }
+
+  return { icons: iconsArr, text };
+}
+
+// Try GPS
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(
+    pos => getWeatherByCoords(pos.coords.latitude, pos.coords.longitude),
+    () => { document.getElementById("weather-card").innerHTML = "<p>Location permission denied. Please enter city.</p>"; }
+  );
+} else {
+  document.getElementById("weather-card").innerHTML = "<p>Geolocation not supported. Please enter city.</p>";
+}
+</script>
+
+</body>
+</html>
