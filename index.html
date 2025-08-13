@@ -65,17 +65,38 @@ const WORKER_URL = "https://weather-proxy.alastairogle.workers.dev";
 
 function getClothingAdvice(temp, description, wind, humidity) {
   let advice = [];
-  
-  if (temp < 0) advice.push({text: "Heavy Coat", icon: "coat"});
-  else if (temp < 10) advice.push({text: "Jacket", icon: "jacket"});
-  else if (temp < 18) advice.push({text: "Light Sweater", icon: "sweater"});
-  else advice.push({text: "T-shirt", icon: "tshirt"});
-  
-  if (/rain|drizzle/i.test(description)) advice.push({text: "Umbrella", icon: "umbrella"});
-  if (/snow/i.test(description)) advice.push({text: "Gloves & Hat", icon: "hat"});
-  if (wind > 30) advice.push({text: "Windbreaker", icon: "wind"});
-  if (humidity > 80 && temp > 20) advice.push({text: "Breathable Fabrics", icon: "breathable"});
-  
+
+  if (temp >= 20) {
+    advice.push({ text: "T-shirt", icon: "tshirt" });
+    advice.push({ text: "Shirt", icon: "shirt" });
+  }
+  else if (temp >= 15 && temp <= 19) {
+    advice.push({ text: "T-shirt + Light Jacket", icon: "jacket" });
+    advice.push({ text: "Long-sleeved Shirt", icon: "shirt" });
+  }
+  else if (temp >= 10 && temp <= 14) {
+    advice.push({ text: "T-shirt + Shirt", icon: "shirt" });
+    advice.push({ text: "Long-sleeved Shirt + Light Jacket", icon: "jacket" });
+  }
+  else if (temp >= 5 && temp <= 9) {
+    advice.push({ text: "T-shirt + Shirt + Jacket", icon: "jacket" });
+    advice.push({ text: "Warm Coat", icon: "coat" });
+  }
+  else if (temp >= 0 && temp <= 4) {
+    advice.push({ text: "Warm Coat + Shirt + T-shirt", icon: "coat" });
+    advice.push({ text: "Scarf", icon: "scarf" });
+  }
+  else if (temp < 0) {
+    advice.push({ text: "Heavy Coat + Layers", icon: "coat" });
+    advice.push({ text: "Scarf, Gloves, Hat", icon: "hat" });
+  }
+
+  // Weather conditions
+  if (/rain|drizzle/i.test(description)) advice.push({ text: "Umbrella", icon: "umbrella" });
+  if (/snow/i.test(description)) advice.push({ text: "Gloves & Hat", icon: "hat" });
+  if (wind > 30) advice.push({ text: "Windbreaker", icon: "wind" });
+  if (humidity > 80 && temp > 20) advice.push({ text: "Breathable Fabrics", icon: "breathable" });
+
   return advice;
 }
 
@@ -85,7 +106,8 @@ function iconSVG(type) {
     case "jacket": return `<svg><path d="M15 5 h20 v40 h-20z M15 15 h20"/></svg>`;
     case "sweater": return `<svg><path d="M10 10 h30 v30 h-30z"/></svg>`;
     case "tshirt": return `<svg viewBox="0 0 24 24"><path d="M4 4l4-2 4 2 4-2 4 2v4l-2 1v10H6V9L4 8z"/></svg>`;
-    
+    case "shirt": return `<svg><path d="M10 5 h30 l5 10 h-10 v30 h-20 v-30 h-10z"/></svg>`;
+		case "scarf": return `<svg><path d="M20 5 v20 h5 v20 m-5-20 h-5 v20"/></svg>`;
     case "umbrella": return `<svg><path d="M5 20 q20 -20 40 0 M25 20 v20"/></svg>`;
     case "hat": return `<svg><path d="M10 25 h30 v5 h-30z M15 20 h20 v5 h-20z"/></svg>`;
     case "wind": return `<svg><path d="M5 15 h20 m5 0 h10 m-5 10 h20"/></svg>`;
