@@ -68,6 +68,7 @@ function getClothingAdvice(temp, description, wind, humidity) {
 
   if (temp >= 20) {
     advice.push({ text: "T-shirt", icon: "tshirt" });
+	advice.push({ text: "or" });
     advice.push({ text: "Shirt", icon: "shirt" });
   }
   else if (temp >= 15 && temp <= 19) {
