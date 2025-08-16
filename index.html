@@ -66,50 +66,7 @@ function getCityFromUrl() {
   const params = new URLSearchParams(window.location.search);
   return params.get("city") || "London"; // fallback if no city in URL
 }
-document.getElementById("useLocationBtn").addEventListener("click", () => {
-  if (!navigator.geolocation) {
-    alert("Geolocation is not supported by your browser");
-    return;
-  }
-  navigator.geolocation.getCurrentPosition(success, error);
-});
 
-async function success(position) {
-  const lat = position.coords.latitude;
-  const lon = position.coords.longitude;
-
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`
-    );
-    const data = await res.json();
-
-    let city = data.address.city || 
-               data.address.town || 
-               data.address.village || 
-               data.address.county;
-
-    if (!city) {
-      alert("Could not determine nearest city.");
-      return;
-    }
-
-    // Update the URL with ?city=CityName
-    const newUrl = `${window.location.pathname}?city=${encodeURIComponent(city)}`;
-    window.history.pushState({ path: newUrl }, "", newUrl);
-
-    // Fetch weather for this city
-    fetchWeather(city);
-  } catch (err) {
-    console.error("Reverse geocoding failed", err);
-    alert("Could not determine your location.");
-  }
-}
-
-function error() {
-  alert("Unable to retrieve your location");
-}
-	
 function getClothingAdvice(temp, description, wind, humidity) {
   let advice = [];
 
