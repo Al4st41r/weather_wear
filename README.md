@@ -1,10 +1,20 @@
 # weather_wear
 Vibe coded app to tell me what to wear depending on the weather. 
 Minimalist, mobile-first web app that checks the local weather and suggests what layers of clothing to wear — with both text and clean outline icons.
+Now with a shortcut.app shorcut to be able to ask siri "what should i wear today?"
 
 ## 🌍 Live Demo
 [View on GitHub Pages](https://al4st41r.github.io/weather_wear/)
 
+## Apple Shortcut / Siri
+1. open Shortcuts.app
+2. Create new shortcut called "what shoudl i wear today?"
+3. add the following items:
+   - Get contents of webpage at https://al4st41r.github.io/weather_wear/?city=London (replace the city name with your typical location)
+   - Make rich text from Contents of webpage
+   - Replace 'Weather Wear What to wear to be comfortable based on your local weather. Check Use My ' with '' in Rich text from HTML
+   - Speak Updated text
+  
 ## ✨ Features
 - **Automatic location detection** (with permission) or manual city entry.
 - **Default city:** London, UK.
