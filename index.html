@@ -62,7 +62,54 @@
 
 <script>
 const WORKER_URL = "https://weather-proxy.alastairogle.workers.dev";
+function getCityFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("city") || "London"; // fallback if no city in URL
+}
+document.getElementById("useLocationBtn").addEventListener("click", () => {
+  if (!navigator.geolocation) {
+    alert("Geolocation is not supported by your browser");
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(success, error);
+});
 
+async function success(position) {
+  const lat = position.coords.latitude;
+  const lon = position.coords.longitude;
+
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`
+    );
+    const data = await res.json();
+
+    let city = data.address.city || 
+               data.address.town || 
+               data.address.village || 
+               data.address.county;
+
+    if (!city) {
+      alert("Could not determine nearest city.");
+      return;
+    }
+
+    // Update the URL with ?city=CityName
+    const newUrl = `${window.location.pathname}?city=${encodeURIComponent(city)}`;
+    window.history.pushState({ path: newUrl }, "", newUrl);
+
+    // Fetch weather for this city
+    fetchWeather(city);
+  } catch (err) {
+    console.error("Reverse geocoding failed", err);
+    alert("Could not determine your location.");
+  }
+}
+
+function error() {
+  alert("Unable to retrieve your location");
+}
+	
 function getClothingAdvice(temp, description, wind, humidity) {
   let advice = [];
 
@@ -103,7 +150,6 @@ function getClothingAdvice(temp, description, wind, humidity) {
 
 function iconSVG(type) {
   switch(type) {
-
 	case "coat": return '<svg viewBox="0 0 40 40"><path d="M20 7v28.514m6.171-9.807-3.342 2.586M22.5 14.5v4.225m5.414 17.172H12.007M13.829 26l3.342 2.586m2.854 9.362L12 38c.031-4.251-.061-16.122 0-24.747v17.695H7v-20.5c0-5.26 2.575-6.396 6.846-6.396 1.111 1.717 3.456 2.904 6.144 2.904h-.015c2.688 0 5.033-1.187 6.144-2.904C30.45 4.052 33 5.188 33 10.448v20.5h-5V13.253l-.094 24.695H20M12.5 4c1.237 2.266 4.069 4.926 7.5 4.926S26.263 6.266 27.5 4" style="fill:none;stroke:#000;stroke-width:1px"/></svg>';
     case "jacket": return `<svg viewBox="0 0 40 40"><path d="M20,7L20,35.514M26.341,25.707L23,28.293M13.659,26L17,28.586M19.975,36L12,36L12,13.409L12,31.104L7,31C7,31 6.975,14.745 6.975,10.5C6.975,5.24 9.525,4.103 13.796,4.103C14.907,5.82 17.252,7.007 19.975,7.007L19.951,7.007C22.673,7.007 25.018,5.82 26.129,4.103C30.4,4.103 32.95,5.24 32.95,10.5L32.95,31L28,31.104L28,13.409L28,36L19.95,36" style="fill:none;stroke:black;stroke-width:1.5px;"/></svg>`;
 	case "jumper": return `<svg viewBox="0 0 40 40"><path d="M19.951,7.007C22.673,7.007 25.018,5.82 26.129,4.103C30.4,4.103 32.95,5.24 32.95,10.5L32.95,31L28,31L28,13.5L28,36L12,36L12,13.5L12,31L7,31L7,10.5C7,5.24 9.55,4.103 13.821,4.103C14.932,5.82 17.277,7.007 19.999,7.007M32.95,28.991L28,29M12,29L6.975,29" style="fill:none;fill-rule:nonzero;stroke:black;stroke-width:1.5px;"/></svg>`;
@@ -117,7 +163,7 @@ function iconSVG(type) {
     default: return "";
   }
 }
-
+	
 async function fetchWeather(city = "London") {
   try {
     const res = await fetch(`${WORKER_URL}?city=${encodeURIComponent(city)}`);
@@ -146,10 +192,6 @@ async function fetchWeather(city = "London") {
   } catch (err) {
     document.getElementById("weather").textContent = "Error fetching weather.";
   }
-}
-function getCityFromUrl() {
-  const params = new URLSearchParams(window.location.search);
-  return params.get("city") || "London"; // fallback if no city in URL
 }
 	
 function getWeatherByCity() {
