@@ -4,7 +4,7 @@ Minimalist, mobile-first web app that checks the local weather and suggests what
 Now with a shortcut.app shorcut to be able to ask siri "what should i wear today?"
 
 ## 🌍 Live Demo
-[View on GitHub Pages](https://al4st41r.github.io/weather_wear/)
+[View on GitHub Pages](https://al4st41r.github.io/weather_wear/?city=London)
 
 ## Apple Shortcut / Siri
 1. open Shortcuts.app
