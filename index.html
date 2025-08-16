@@ -147,7 +147,11 @@ async function fetchWeather(city = "London") {
     document.getElementById("weather").textContent = "Error fetching weather.";
   }
 }
-
+function getCityFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("city") || "London"; // fallback if no city in URL
+}
+	
 function getWeatherByCity() {
   const city = document.getElementById("cityInput").value || "London";
   fetchWeather(city);
@@ -183,6 +187,7 @@ function getWeatherByLocation() {
   }
 }
 
+fetchWeather(getCityFromUrl());
 
 </script>
 </body>
