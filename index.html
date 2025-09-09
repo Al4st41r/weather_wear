@@ -1,236 +1,354 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Weather Wear</title>
-<style>
-  body {
-    font-family: sans-serif;
-    background: white;
-    color: #333;
-    text-align: center;
-    padding: 20px;
-  }
-  h1 {
-    margin-bottom: 0.5em;
-  }
-  .weather {
-    margin-top: 1em;
-    font-size: 1.2em;
-  }
-  .icons {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    margin-top: 1em;
-  }
-  .icon {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin: 0.5em;
-    font-size: 0.9em;
-  }
-  svg {
-    width: 100px;
-    height: 100px;
-    stroke: #333;
-    fill: none;
-    stroke-width: 1.5;
-  }
-  input, button {
-    padding: 0.5em;
-    margin: 0.3em;
-    font-size: 1em;
-  }
-  .visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
-</style>
-</head>
-<body>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Weather Wear</title>
+        <style>
+            body {
+                font-family: sans-serif;
+                background: white;
+                color: #333;
+                text-align: center;
+                padding: 20px;
+            }
+            h1 {
+                margin-bottom: 0.5em;
+            }
+            .weather {
+                margin-top: 1em;
+                font-size: 1.2em;
+            }
+            .icons {
+                display: flex;
+                justify-content: center;
+                flex-wrap: wrap;
+                margin-top: 1em;
+            }
+            .icon {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                margin: 0.5em;
+                font-size: 0.9em;
+            }
+            svg {
+                width: 100px;
+                height: 100px;
+                stroke: #333;
+                fill: none;
+                stroke-width: 1.5;
+            }
+            input,
+            button {
+                padding: 0.5em;
+                margin: 0.3em;
+                font-size: 1em;
+            }
+            .visually-hidden {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                padding: 0;
+                margin: -1px;
+                overflow: hidden;
+                clip: rect(0, 0, 0, 0);
+                white-space: nowrap;
+                border: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Weather Wear</h1>
+        <p>What to wear to be comfortable based on your local weather.</p>
 
-<h1>Weather Wear</h1>
-<p>What to wear to be comfortable based on your local weather.</p>
+        <div>
+            <input
+                type="text"
+                id="cityInput"
+                placeholder="Enter city (default London)"
+            />
+            <button onclick="getWeatherByCity()">Check</button>
+            <button onclick="getWeatherByLocation()">Use My Location</button>
+        </div>
 
-<div>
-  <input type="text" id="cityInput" placeholder="Enter city (default London)">
-  <button onclick="getWeatherByCity()">Check</button>
-  <button onclick="getWeatherByLocation()">Use My Location</button>
-</div>
+        <div class="weather" id="weather"></div>
+        <div id="siri-summary" class="visually-hidden"></div>
+        <div class="icons" id="adviceIcons"></div>
 
-<div class="weather" id="weather"></div>
-<div id="siri-summary" class="visually-hidden"></div>
-<div class="icons" id="adviceIcons"></div>
+        <script>
+            const WORKER_URL = "https://weather-proxy.alastairogle.workers.dev";
+            function getCityFromUrl() {
+                const params = new URLSearchParams(window.location.search);
+                return params.get("city") || "London"; // fallback if no city in URL
+            }
 
-<script>
-const WORKER_URL = "https://weather-proxy.alastairogle.workers.dev";
-function getCityFromUrl() {
-  const params = new URLSearchParams(window.location.search);
-  return params.get("city") || "London"; // fallback if no city in URL
-}
+            function getClothingAdvice(weatherData) {
+                const current = weatherData.current;
+                let temp;
 
-function getClothingAdvice(weatherData) {
-  const dayForecast = weatherData.daily[0];
-  const temp = Math.round((dayForecast.temp.min + dayForecast.temp.max) / 2);
-  const description = dayForecast.weather[0].description;
-  const wind = dayForecast.wind_speed;
-  const humidity = dayForecast.humidity;
+                // Use average of daily min/max for clothing advice if available, otherwise fallback to current temp
+                if (
+                    weatherData.daily &&
+                    weatherData.daily[0] &&
+                    weatherData.daily[0].temp
+                ) {
+                    const dailyTemp = weatherData.daily[0].temp;
+                    temp = Math.round((dailyTemp.min + dailyTemp.max) / 2);
+                } else {
+                    temp = Math.round(current.main.temp);
+                }
 
-  let advice = [];
-  let siriSummary = "";
+                const description = current.weather[0].description;
+                const wind = current.wind.speed;
+                const humidity = current.main.humidity;
 
-  if (temp >= 20) {
-    advice.push({ text: "T-shirt", icon: "tshirt" });
-    advice.push({ text: "or" });
-    advice.push({ text: "Shirt", icon: "shirt" });
-    siriSummary = "Today, you should be comfortable in a single layer.";
-  }
-  else if (temp >= 15 && temp <= 19) {
-    advice.push({ text: "T-shirt + Light Jacket", icon: "jacket" });
-    siriSummary = "Today, you might want two layers, like a t-shirt and a light jacket.";
-  }
-  else if (temp >= 10 && temp <= 14) {
-    advice.push({ text: "T-shirt + Shirt", icon: "shirt" });
-    advice.push({ text: "Long-sleeved Shirt + Light Jacket", icon: "jacket" });
-    siriSummary = "Today is a two-layer day. A shirt with a light jacket should be perfect.";
-  }
-  else if (temp >= 5 && temp <= 9) {
-    advice.push({ text: "T-shirt + Shirt + Jacket", icon: "jacket" });
-    advice.push({ text: "Warm Coat", icon: "coat" });
-    siriSummary = "It's cold today. Plan for three layers, like a t-shirt, shirt, and a warm jacket or coat.";
-  }
-  else if (temp >= 0 && temp <= 4) {
-    advice.push({ text: "Warm Coat + Shirt + T-shirt", icon: "coat" });
-    advice.push({ text: "Scarf", icon: "scarf" });
-    siriSummary = "It's very cold. You'll need at least three layers, including a warm coat and a scarf.";
-  }
-  else if (temp < 0) {
-    advice.push({ text: "Heavy Coat + Layers", icon: "coat" });
-    advice.push({ text: "Scarf, Gloves, Hat", icon: "hat" });
-    siriSummary = "It's freezing. Wear a heavy coat and multiple layers underneath. Don't forget a scarf, gloves, and a hat.";
-  }
+                let advice = [];
+                let siriSummary = "";
 
-  // Weather conditions
-  const dailyForecast = weatherData.daily.slice(0, 1); // Check today's forecast
-  const willRain = dailyForecast.some(day => 
-    /rain|drizzle/i.test(day.weather[0].description) || (day.rain && day.rain > 0)
-  );
-  
-  if (willRain) {
-    advice.push({ text: "Umbrella", icon: "umbrella" });
-    siriSummary += " Also, it might rain today, so consider taking an umbrella.";
-  }
-  if (/snow/i.test(description)) {
-    advice.push({ text: "Gloves & Hat", icon: "hat" });
-    siriSummary += " It might snow, so gloves and a hat are a good idea.";
-  }
-  if (wind > 30) {
-    advice.push({ text: "Windbreaker", icon: "wind" });
-    siriSummary += " It's windy, so a windbreaker is recommended.";
-  }
-  if (humidity > 80 && temp > 20) {
-    advice.push({ text: "Breathable Fabrics", icon: "breathable" });
-    siriSummary += " It's humid, so wear breathable fabrics.";
-  }
+                if (temp >= 20) {
+                    advice.push({ text: "T-shirt", icon: "tshirt" });
+                    advice.push({ text: "or" });
+                    advice.push({ text: "Shirt", icon: "shirt" });
+                    siriSummary =
+                        "Today, you should be comfortable in a single layer.";
+                } else if (temp >= 15 && temp <= 19) {
+                    advice.push({
+                        text: "T-shirt + Light Jacket",
+                        icon: "jacket",
+                    });
+                    siriSummary =
+                        "Today, you might want two layers, like a t-shirt and a light jacket.";
+                } else if (temp >= 10 && temp <= 14) {
+                    advice.push({ text: "T-shirt + Shirt", icon: "shirt" });
+                    advice.push({
+                        text: "Long-sleeved Shirt + Light Jacket",
+                        icon: "jacket",
+                    });
+                    siriSummary =
+                        "Today is a two-layer day. A shirt with a light jacket should be perfect.";
+                } else if (temp >= 5 && temp <= 9) {
+                    advice.push({
+                        text: "T-shirt + Shirt + Jacket",
+                        icon: "jacket",
+                    });
+                    advice.push({ text: "Warm Coat", icon: "coat" });
+                    siriSummary =
+                        "It's cold today. Plan for three layers, like a t-shirt, shirt, and a warm jacket or coat.";
+                } else if (temp >= 0 && temp <= 4) {
+                    advice.push({
+                        text: "Warm Coat + Shirt + T-shirt",
+                        icon: "coat",
+                    });
+                    advice.push({ text: "Scarf", icon: "scarf" });
+                    siriSummary =
+                        "It's very cold. You'll need at least three layers, including a warm coat and a scarf.";
+                } else if (temp < 0) {
+                    advice.push({ text: "Heavy Coat + Layers", icon: "coat" });
+                    advice.push({ text: "Scarf, Gloves, Hat", icon: "hat" });
+                    siriSummary =
+                        "It's freezing. Wear a heavy coat and multiple layers underneath. Don't forget a scarf, gloves, and a hat.";
+                }
 
-  return { advice, siriSummary };
-}
+                // Weather conditions
+                // Use daily forecast for precipitation if available, otherwise fallback to current description
+                const precipDescription =
+                    weatherData.daily &&
+                    weatherData.daily[0] &&
+                    weatherData.daily[0].weather &&
+                    weatherData.daily[0].weather[0]
+                        ? weatherData.daily[0].weather[0].main
+                        : description;
 
-function iconSVG(type) {
-  switch(type) {
-	case "coat": return '<svg viewBox="0 0 40 40"><path d="M20 7v28.514m6.171-9.807-3.342 2.586M22.5 14.5v4.225m5.414 17.172H12.007M13.829 26l3.342 2.586m2.854 9.362L12 38c.031-4.251-.061-16.122 0-24.747v17.695H7v-20.5c0-5.26 2.575-6.396 6.846-6.396 1.111 1.717 3.456 2.904 6.144 2.904h-.015c2.688 0 5.033-1.187 6.144-2.904C30.45 4.052 33 5.188 33 10.448v20.5h-5V13.253l-.094 24.695H20M12.5 4c1.237 2.266 4.069 4.926 7.5 4.926S26.263 6.266 27.5 4" style="fill:none;stroke:#000;stroke-width:1px"/></svg>';
-    case "jacket": return `<svg viewBox="0 0 40 40"><path d="M20,7L20,35.514M26.341,25.707L23,28.293M13.659,26L17,28.586M19.975,36L12,36L12,13.409L12,31.104L7,31C7,31 6.975,14.745 6.975,10.5C6.975,5.24 9.525,4.103 13.796,4.103C14.907,5.82 17.252,7.007 19.975,7.007L19.951,7.007C22.673,7.007 25.018,5.82 26.129,4.103C30.4,4.103 32.95,5.24 32.95,10.5L32.95,31L28,31.104L28,13.409L28,36L19.95,36" style="fill:none;stroke:black;stroke-width:1.5px;"/></svg>`;
-	case "jumper": return `<svg viewBox="0 0 40 40"><path d="M19.951,7.007C22.673,7.007 25.018,5.82 26.129,4.103C30.4,4.103 32.95,5.24 32.95,10.5L32.95,31L28,31L28,13.5L28,36L12,36L12,13.5L12,31L7,31L7,10.5C7,5.24 9.55,4.103 13.821,4.103C14.932,5.82 17.277,7.007 19.999,7.007M32.95,28.991L28,29M12,29L6.975,29" style="fill:none;fill-rule:nonzero;stroke:black;stroke-width:1.5px;"/></svg>`;
-	case "tshirt": return `<svg viewBox="0 0 40 40"><path d="M20.071,7.032C17.339,7.032 16.219,5.841 15.104,4.118C10.818,4.118 7.025,5.259 7.025,10.538C7.02,14.798 6.975,17.563 6.975,17.63L12.043,17.667L12.093,13.457L12.093,36.129L28.05,36.129L28.05,13.457L28.1,17.667L33.168,17.563C33.168,17.563 33.118,14.798 33.118,10.538C33.118,5.259 29.325,4.118 25.039,4.118C23.924,5.841 22.804,7.032 20.072,7.032" style="fill:none;fill-rule:nonzero;stroke:black;stroke-width:1.5px;"/></svg>`;
-    case "shirt": return `<svg viewBox="0 0 40 40"><path d="M13.82 4.103C9.55 4.103 7 5.24 7 10.5v20.5h5V13.409 36h8M26.13 4.103C30.4 4.103 32.95 5.24 32.95 10.5v20.5h-5V13.409 36h-8M13.75 4.09l1.758-1.68c.28.495 3.127 3.553 4.442 3.553l-1.113 2.98.004.002c-2.136 0-4.21-3.119-5.083-4.856m12.5 0-1.758-1.68c-.28.495-3.127 3.553-4.442 3.553l1.113 2.98-.004.002c2.136 0 4.21-3.119 5.083-4.856M20 7v28.514m6.945-19l-6.1-0" style="fill:none;fill-rule:nonzero;stroke:black;stroke-width:1.5px;"/></svg>`;
-	case "scarf": return `<svg><path d="M20 5 v20 h5 v20 m-5-20 h-5 v20"/></svg>`;
-    case "umbrella": return `<svg><path d="M5 20 q20 -20 40 0 M25 20 v20"/></svg>`;
-    case "hat": return `<svg><path d="M10 25 h30 v5 h-30z M15 20 h20 v5 h-20z"/></svg>`;
-    case "wind": return `<svg><path d="M5 15 h20 m5 0 h10 m-5 10 h20"/></svg>`;
-    case "breathable": return `<svg><circle cx="15" cy="15" r="5"/><circle cx="35" cy="15" r="5"/></svg>`;
-    default: return "";
-  }
-}
-	
-async function fetchWeather(city = "London") {
-  try {
-    const res = await fetch(`${WORKER_URL}?city=${encodeURIComponent(city)}`);
-    const data = await res.json();
-    
-    if (!data.daily || !data.daily[0]) {
-      document.getElementById("weather").textContent = "Error: Could not fetch weather data.";
-      return;
-    }
+                if (/rain|drizzle/i.test(precipDescription)) {
+                    advice.push({ text: "Umbrella", icon: "umbrella" });
+                    siriSummary +=
+                        " Also, it might rain today, so consider taking an umbrella.";
+                }
+                if (/snow/i.test(precipDescription)) {
+                    advice.push({ text: "Gloves & Hat", icon: "hat" });
+                    siriSummary +=
+                        " It might snow today, so gloves and a hat are a good idea.";
+                }
+                if (wind > 30) {
+                    advice.push({ text: "Windbreaker", icon: "wind" });
+                    siriSummary +=
+                        " It's windy, so a windbreaker is recommended.";
+                }
+                if (humidity > 80 && temp > 20) {
+                    advice.push({
+                        text: "Breathable Fabrics",
+                        icon: "breathable",
+                    });
+                    siriSummary += " It's humid, so wear breathable fabrics.";
+                }
 
-    const dayForecast = data.daily[0];
-    const tempHigh = Math.round(dayForecast.temp.max);
-    const tempLow = Math.round(dayForecast.temp.min);
-    const description = dayForecast.weather[0].description;
+                return { advice, siriSummary };
+            }
 
-    document.getElementById("weather").textContent = 
-      `${city}: ${description}, High: ${tempHigh}°C, Low: ${tempLow}°C`;
+            function iconSVG(type) {
+                switch (type) {
+                    case "coat":
+                        return '<svg viewBox="0 0 40 40"><path d="M20 7v28.514m6.171-9.807-3.342 2.586M22.5 14.5v4.225m5.414 17.172H12.007M13.829 26l3.342 2.586m2.854 9.362L12 38c.031-4.251-.061-16.122 0-24.747v17.695H7v-20.5c0-5.26 2.575-6.396 6.846-6.396 1.111 1.717 3.456 2.904 6.144 2.904h-.015c2.688 0 5.033-1.187 6.144-2.904C30.45 4.052 33 5.188 33 10.448v20.5h-5V13.253l-.094 24.695H20M12.5 4c1.237 2.266 4.069 4.926 7.5 4.926S26.263 6.266 27.5 4" style="fill:none;stroke:#000;stroke-width:1px"/></svg>';
+                    case "jacket":
+                        return `<svg viewBox="0 0 40 40"><path d="M20,7L20,35.514M26.341,25.707L23,28.293M13.659,26L17,28.586M19.975,36L12,36L12,13.409L12,31.104L7,31C7,31 6.975,14.745 6.975,10.5C6.975,5.24 9.525,4.103 13.796,4.103C14.907,5.82 17.252,7.007 19.975,7.007L19.951,7.007C22.673,7.007 25.018,5.82 26.129,4.103C30.4,4.103 32.95,5.24 32.95,10.5L32.95,31L28,31.104L28,13.409L28,36L19.95,36" style="fill:none;stroke:black;stroke-width:1.5px;"/></svg>`;
+                    case "jumper":
+                        return `<svg viewBox="0 0 40 40"><path d="M19.951,7.007C22.673,7.007 25.018,5.82 26.129,4.103C30.4,4.103 32.95,5.24 32.95,10.5L32.95,31L28,31L28,13.5L28,36L12,36L12,13.5L12,31L7,31L7,10.5C7,5.24 9.55,4.103 13.821,4.103C14.932,5.82 17.277,7.007 19.999,7.007M32.95,28.991L28,29M12,29L6.975,29" style="fill:none;fill-rule:nonzero;stroke:black;stroke-width:1.5px;"/></svg>`;
+                    case "tshirt":
+                        return `<svg viewBox="0 0 40 40"><path d="M20.071,7.032C17.339,7.032 16.219,5.841 15.104,4.118C10.818,4.118 7.025,5.259 7.025,10.538C7.02,14.798 6.975,17.563 6.975,17.63L12.043,17.667L12.093,13.457L12.093,36.129L28.05,36.129L28.05,13.457L28.1,17.667L33.168,17.563C33.168,17.563 33.118,14.798 33.118,10.538C33.118,5.259 29.325,4.118 25.039,4.118C23.924,5.841 22.804,7.032 20.072,7.032" style="fill:none;fill-rule:nonzero;stroke:black;stroke-width:1.5px;"/></svg>`;
+                    case "shirt":
+                        return `<svg viewBox="0 0 40 40"><path d="M13.82 4.103C9.55 4.103 7 5.24 7 10.5v20.5h5V13.409 36h8M26.13 4.103C30.4 4.103 32.95 5.24 32.95 10.5v20.5h-5V13.409 36h-8M13.75 4.09l1.758-1.68c.28.495 3.127 3.553 4.442 3.553l-1.113 2.98.004.002c-2.136 0-4.21-3.119-5.083-4.856m12.5 0-1.758-1.68c-.28.495-3.127 3.553-4.442 3.553l1.113 2.98-.004.002c2.136 0 4.21-3.119 5.083-4.856M20 7v28.514m6.945-19l-6.1-0" style="fill:none;fill-rule:nonzero;stroke:black;stroke-width:1.5px;"/></svg>`;
+                    case "scarf":
+                        return `<svg><path d="M20 5 v20 h5 v20 m-5-20 h-5 v20"/></svg>`;
+                    case "umbrella":
+                        return `<svg><path d="M5 20 q20 -20 40 0 M25 20 v20"/></svg>`;
+                    case "hat":
+                        return `<svg><path d="M10 25 h30 v5 h-30z M15 20 h20 v5 h-20z"/></svg>`;
+                    case "wind":
+                        return `<svg><path d="M5 15 h20 m5 0 h10 m-5 10 h20"/></svg>`;
+                    case "breathable":
+                        return `<svg><circle cx="15" cy="15" r="5"/><circle cx="35" cy="15" r="5"/></svg>`;
+                    default:
+                        return "";
+                }
+            }
 
-    const { advice, siriSummary } = getClothingAdvice(data);
-    document.getElementById("adviceIcons").innerHTML = advice.map(a => `
+            async function fetchWeather(city = "London") {
+                try {
+                    const res = await fetch(
+                        `${WORKER_URL}?city=${encodeURIComponent(city)}`,
+                    );
+                    const data = await res.json();
+
+                    if (
+                        !data.current ||
+                        !data.current.weather ||
+                        !data.current.main
+                    ) {
+                        document.getElementById("weather").textContent =
+                            "Error: Could not fetch weather data.";
+                        console.error("Incomplete data from fetch:", data);
+                        return;
+                    }
+
+                    const description = data.current.weather[0].description;
+                    let tempDisplay;
+
+                    // Use daily high/low for display if available, otherwise fallback to current temp
+                    if (data.daily && data.daily[0] && data.daily[0].temp) {
+                        const highTemp = Math.round(data.daily[0].temp.max);
+                        const lowTemp = Math.round(data.daily[0].temp.min);
+                        tempDisplay = `High: ${highTemp}°C, Low: ${lowTemp}°C`;
+                    } else {
+                        const temp = Math.round(data.current.main.temp);
+                        tempDisplay = `${temp}°C`;
+                    }
+
+                    document.getElementById("weather").textContent =
+                        `${city}: ${description}, ${tempDisplay}`;
+
+                    const { advice, siriSummary } = getClothingAdvice(data);
+                    document.getElementById("adviceIcons").innerHTML = advice
+                        .map(
+                            (a) => `
       <div class="icon">
         ${iconSVG(a.icon)}
         <div>${a.text}</div>
       </div>
-    `).join("");
-    document.getElementById("siri-summary").textContent = siriSummary;
-  } catch (err) {
-    document.getElementById("weather").textContent = "Error fetching weather.";
-  }
-}
-	
-function getWeatherByCity() {
-  const city = document.getElementById("cityInput").value || "London";
-  fetchWeather(city);
-}
+    `,
+                        )
+                        .join("");
+                    document.getElementById("siri-summary").textContent =
+                        siriSummary;
+                } catch (err) {
+                    console.error("Fetch weather error:", err);
+                    document.getElementById("weather").textContent =
+                        "Error fetching weather.";
+                }
+            }
 
-function getWeatherByLocation() {
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      const { latitude, longitude } = pos.coords;
-      try {
-        const res = await fetch(`${WORKER_URL}?lat=${latitude}&lon=${longitude}`);
-        const data = await res.json();
-        const city = data.current.name || "Your location";
-        const dayForecast = data.daily[0];
-        const tempHigh = Math.round(dayForecast.temp.max);
-        const tempLow = Math.round(dayForecast.temp.min);
-        const description = dayForecast.weather[0].description;
+            function getWeatherByCity() {
+                const city =
+                    document.getElementById("cityInput").value || "London";
+                fetchWeather(city);
+            }
 
-        document.getElementById("weather").textContent = 
-          `${city}: ${description}, High: ${tempHigh}°C, Low: ${tempLow}°C`;
+            function getWeatherByLocation() {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(async (pos) => {
+                        const { latitude, longitude } = pos.coords;
+                        try {
+                            const res = await fetch(
+                                `${WORKER_URL}?lat=${latitude}&lon=${longitude}`,
+                            );
+                            const data = await res.json();
 
-        const { advice, siriSummary } = getClothingAdvice(data);
-        document.getElementById("adviceIcons").innerHTML = advice.map(a => `
+                            if (
+                                !data.current ||
+                                !data.current.weather ||
+                                !data.current.main
+                            ) {
+                                document.getElementById("weather").textContent =
+                                    "Error: Could not fetch weather data for your location.";
+                                console.error(
+                                    "Incomplete data from location fetch:",
+                                    data,
+                                );
+                                return;
+                            }
+
+                            const city = data.current.name || "Your location";
+                            const description =
+                                data.current.weather[0].description;
+                            let tempDisplay;
+
+                            // Use daily high/low for display if available, otherwise fallback to current temp
+                            if (
+                                data.daily &&
+                                data.daily[0] &&
+                                data.daily[0].temp
+                            ) {
+                                const highTemp = Math.round(
+                                    data.daily[0].temp.max,
+                                );
+                                const lowTemp = Math.round(
+                                    data.daily[0].temp.min,
+                                );
+                                tempDisplay = `High: ${highTemp}°C, Low: ${lowTemp}°C`;
+                            } else {
+                                const temp = Math.round(data.current.main.temp);
+                                tempDisplay = `${temp}°C`;
+                            }
+
+                            document.getElementById("weather").textContent =
+                                `${city}: ${description}, ${tempDisplay}`;
+
+                            const { advice, siriSummary } =
+                                getClothingAdvice(data);
+                            document.getElementById("adviceIcons").innerHTML =
+                                advice
+                                    .map(
+                                        (a) => `
           <div class="icon">
             ${iconSVG(a.icon)}
             <div>${a.text}</div>
           </div>
-        `).join("");
-        document.getElementById("siri-summary").textContent = siriSummary;
-      } catch {
-        document.getElementById("weather").textContent = "Error fetching location weather.";
-      }
-    });
-  }
-}
+        `,
+                                    )
+                                    .join("");
+                            document.getElementById(
+                                "siri-summary",
+                            ).textContent = siriSummary;
+                        } catch (err) {
+                            console.error("Get location weather error:", err);
+                            document.getElementById("weather").textContent =
+                                "Error fetching location weather.";
+                        }
+                    });
+                }
+            }
 
-fetchWeather(getCityFromUrl());
-
-</script>
-</body>
+            fetchWeather(getCityFromUrl());
+        </script>
+    </body>
 </html>
