@@ -80,10 +80,11 @@ function getCityFromUrl() {
 }
 
 function getClothingAdvice(weatherData) {
-  const temp = Math.round(weatherData.current.main.temp);
-  const description = weatherData.current.weather[0].description;
-  const wind = weatherData.current.wind.speed;
-  const humidity = weatherData.current.main.humidity;
+  const dayForecast = weatherData.daily[0];
+  const temp = Math.round((dayForecast.temp.min + dayForecast.temp.max) / 2);
+  const description = dayForecast.weather[0].description;
+  const wind = dayForecast.wind_speed;
+  const humidity = dayForecast.humidity;
 
   let advice = [];
   let siriSummary = "";
@@ -170,16 +171,18 @@ async function fetchWeather(city = "London") {
     const res = await fetch(`${WORKER_URL}?city=${encodeURIComponent(city)}`);
     const data = await res.json();
     
-    if (!data.current || !data.current.main) {
+    if (!data.daily || !data.daily[0]) {
       document.getElementById("weather").textContent = "Error: Could not fetch weather data.";
       return;
     }
 
-    const temp = Math.round(data.current.main.temp);
-    const description = data.current.weather[0].description;
+    const dayForecast = data.daily[0];
+    const tempHigh = Math.round(dayForecast.temp.max);
+    const tempLow = Math.round(dayForecast.temp.min);
+    const description = dayForecast.weather[0].description;
 
     document.getElementById("weather").textContent = 
-      `${city}: ${description}, ${temp}°C`;
+      `${city}: ${description}, High: ${tempHigh}°C, Low: ${tempLow}°C`;
 
     const { advice, siriSummary } = getClothingAdvice(data);
     document.getElementById("adviceIcons").innerHTML = advice.map(a => `
@@ -207,11 +210,13 @@ function getWeatherByLocation() {
         const res = await fetch(`${WORKER_URL}?lat=${latitude}&lon=${longitude}`);
         const data = await res.json();
         const city = data.current.name || "Your location";
-        const temp = Math.round(data.current.main.temp);
-        const description = data.current.weather[0].description;
+        const dayForecast = data.daily[0];
+        const tempHigh = Math.round(dayForecast.temp.max);
+        const tempLow = Math.round(dayForecast.temp.min);
+        const description = dayForecast.weather[0].description;
 
         document.getElementById("weather").textContent = 
-          `${city}: ${description}, ${temp}°C`;
+          `${city}: ${description}, High: ${tempHigh}°C, Low: ${tempLow}°C`;
 
         const { advice, siriSummary } = getClothingAdvice(data);
         document.getElementById("adviceIcons").innerHTML = advice.map(a => `
