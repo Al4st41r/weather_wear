@@ -121,14 +121,10 @@ function getClothingAdvice(weatherData) {
   }
 
   // Weather conditions
-  let willRain = /rain|drizzle/i.test(description);
-  if (weatherData.hourly) {
-    // Check for rain in the next 24 hours
-    const hourlyForecast = weatherData.hourly.slice(0, 24);
-    willRain = hourlyForecast.some(hour => 
-      hour.weather.some(w => /rain|drizzle/i.test(w.description))
-    );
-  }
+  const dailyForecast = weatherData.daily.slice(0, 1); // Check today's forecast
+  const willRain = dailyForecast.some(day => 
+    /rain|drizzle/i.test(day.weather[0].description) || (day.rain && day.rain > 0)
+  );
   
   if (willRain) {
     advice.push({ text: "Umbrella", icon: "umbrella" });
