@@ -84,24 +84,29 @@
             }
 
             function getClothingAdvice(weatherData) {
-                const current = weatherData.current;
-                let temp;
+                const forecast_9h =
+                    weatherData.forecast &&
+                    weatherData.forecast.list &&
+                    weatherData.forecast.list.slice(0, 3);
 
-                // Use average of daily min/max for clothing advice if available, otherwise fallback to current temp
-                if (
-                    weatherData.daily &&
-                    weatherData.daily[0] &&
-                    weatherData.daily[0].temp
-                ) {
-                    const dailyTemp = weatherData.daily[0].temp;
-                    temp = Math.round((dailyTemp.min + dailyTemp.max) / 2);
-                } else {
-                    temp = Math.round(current.main.temp);
+                if (!forecast_9h || forecast_9h.length < 3) {
+                    return {
+                        advice: [],
+                        siriSummary: "",
+                        highTemp: -Infinity,
+                        lowTemp: Infinity,
+                    };
                 }
 
-                const description = current.weather[0].description;
-                const wind = current.wind.speed;
-                const humidity = current.main.humidity;
+                let highTemp = -Infinity; // Will hold max feels_like
+                let lowTemp = Infinity; // Will hold min feels_like
+
+                forecast_9h.forEach((slot) => {
+                    highTemp = Math.max(highTemp, slot.main.feels_like);
+                    lowTemp = Math.min(lowTemp, slot.main.feels_like);
+                });
+
+                const temp = Math.round((lowTemp + highTemp) / 2);
 
                 let advice = [];
                 let siriSummary = "";
@@ -111,14 +116,14 @@
                     advice.push({ text: "or" });
                     advice.push({ text: "Shirt", icon: "shirt" });
                     siriSummary =
-                        "Today, you should be comfortable in a single layer.";
+                        "In the next few hours, you should be comfortable in a single layer.";
                 } else if (temp >= 15 && temp <= 19) {
                     advice.push({
                         text: "T-shirt + Light Jacket",
                         icon: "jacket",
                     });
                     siriSummary =
-                        "Today, you might want two layers, like a t-shirt and a light jacket.";
+                        "In the next few hours, you might want two layers, like a t-shirt and a light jacket.";
                 } else if (temp >= 10 && temp <= 14) {
                     advice.push({ text: "T-shirt + Shirt", icon: "shirt" });
                     advice.push({
@@ -126,7 +131,7 @@
                         icon: "jacket",
                     });
                     siriSummary =
-                        "Today is a two-layer day. A shirt with a light jacket should be perfect.";
+                        "The next few hours look like a two-layer day. A shirt with a light jacket should be perfect.";
                 } else if (temp >= 5 && temp <= 9) {
                     advice.push({
                         text: "T-shirt + Shirt + Jacket",
@@ -134,7 +139,7 @@
                     });
                     advice.push({ text: "Warm Coat", icon: "coat" });
                     siriSummary =
-                        "It's cold today. Plan for three layers, like a t-shirt, shirt, and a warm jacket or coat.";
+                        "It looks cold for the next few hours. Plan for three layers, like a t-shirt, shirt, and a warm jacket or coat.";
                 } else if (temp >= 0 && temp <= 4) {
                     advice.push({
                         text: "Warm Coat + Shirt + T-shirt",
@@ -142,7 +147,7 @@
                     });
                     advice.push({ text: "Scarf", icon: "scarf" });
                     siriSummary =
-                        "It's very cold. You'll need at least three layers, including a warm coat and a scarf.";
+                        "It looks very cold. You'll need at least three layers, including a warm coat and a scarf.";
                 } else if (temp < 0) {
                     advice.push({ text: "Heavy Coat + Layers", icon: "coat" });
                     advice.push({ text: "Scarf, Gloves, Hat", icon: "hat" });
@@ -150,40 +155,54 @@
                         "It's freezing. Wear a heavy coat and multiple layers underneath. Don't forget a scarf, gloves, and a hat.";
                 }
 
-                // Weather conditions
-                // Use daily forecast for precipitation if available, otherwise fallback to current description
-                const precipDescription =
-                    weatherData.daily &&
-                    weatherData.daily[0] &&
-                    weatherData.daily[0].weather &&
-                    weatherData.daily[0].weather[0]
-                        ? weatherData.daily[0].weather[0].description
-                        : description;
+                let willRain = false;
+                forecast_9h.forEach((slot) => {
+                    if ((slot.pop || 0) > 0.3) {
+                        willRain = true;
+                    }
+                });
 
-                if (/rain|drizzle/i.test(precipDescription)) {
+                if (willRain) {
                     advice.push({ text: "Umbrella", icon: "umbrella" });
                     siriSummary +=
-                        " Also, it might rain today, so consider taking an umbrella.";
+                        " Also, it might rain in the next few hours, so consider taking an umbrella.";
                 }
-                if (/snow/i.test(precipDescription)) {
+
+                let willSnow = false;
+                forecast_9h.forEach((slot) => {
+                    if (
+                        slot.weather &&
+                        slot.weather[0] &&
+                        /snow/i.test(slot.weather[0].main)
+                    ) {
+                        willSnow = true;
+                    }
+                });
+
+                if (willSnow) {
                     advice.push({ text: "Gloves & Hat", icon: "hat" });
                     siriSummary +=
-                        " It might snow today, so gloves and a hat are a good idea.";
+                        " It might snow in the next few hours, so gloves and a hat are a good idea.";
                 }
+
+                const wind = forecast_9h[0].wind.speed;
                 if (wind > 30) {
                     advice.push({ text: "Windbreaker", icon: "wind" });
                     siriSummary +=
-                        " It's windy, so a windbreaker is recommended.";
+                        " It may be windy, so a windbreaker is recommended.";
                 }
+
+                const humidity = forecast_9h[0].main.humidity;
                 if (humidity > 80 && temp > 20) {
                     advice.push({
                         text: "Breathable Fabrics",
                         icon: "breathable",
                     });
-                    siriSummary += " It's humid, so wear breathable fabrics.";
+                    siriSummary +=
+                        " It may be humid, so wear breathable fabrics.";
                 }
 
-                return { advice, siriSummary };
+                return { advice, siriSummary, highTemp, lowTemp };
             }
 
             function iconSVG(type) {
@@ -221,33 +240,31 @@
                     const data = await res.json();
 
                     if (
-                        !data.current ||
-                        !data.current.weather ||
-                        !data.current.main
+                        !data.forecast ||
+                        !data.forecast.list ||
+                        data.forecast.list.length === 0
                     ) {
                         document.getElementById("weather").textContent =
-                            "Error: Could not fetch weather data.";
-                        console.error("Incomplete data from fetch:", data);
+                            "Error: Forecast data is not available.";
                         return;
                     }
 
-                    const description = data.current.weather[0].description;
+                    const { advice, siriSummary, highTemp, lowTemp } =
+                        getClothingAdvice(data);
+
+                    const description =
+                        data.forecast.list[0].weather[0].description;
                     let tempDisplay;
 
-                    // Use daily high/low for display if available, otherwise fallback to current temp
-                    if (data.daily && data.daily[0] && data.daily[0].temp) {
-                        const highTemp = Math.round(data.daily[0].temp.max);
-                        const lowTemp = Math.round(data.daily[0].temp.min);
-                        tempDisplay = `High: ${highTemp}°C, Low: ${lowTemp}°C`;
+                    if (highTemp !== -Infinity && lowTemp !== Infinity) {
+                        tempDisplay = `High: ${Math.round(highTemp)}°C, Low: ${Math.round(lowTemp)}°C`;
                     } else {
-                        const temp = Math.round(data.current.main.temp);
-                        tempDisplay = `${temp}°C`;
+                        tempDisplay = "N/A";
                     }
 
                     document.getElementById("weather").textContent =
                         `${city}: ${description}, ${tempDisplay}`;
 
-                    const { advice, siriSummary } = getClothingAdvice(data);
                     document.getElementById("adviceIcons").innerHTML = advice
                         .map(
                             (a) => `
@@ -284,47 +301,35 @@
                             const data = await res.json();
 
                             if (
-                                !data.current ||
-                                !data.current.weather ||
-                                !data.current.main
+                                !data.forecast ||
+                                !data.forecast.list ||
+                                data.forecast.list.length === 0
                             ) {
                                 document.getElementById("weather").textContent =
-                                    "Error: Could not fetch weather data for your location.";
-                                console.error(
-                                    "Incomplete data from location fetch:",
-                                    data,
-                                );
+                                    "Error: Forecast data is not available.";
                                 return;
                             }
 
-                            const city = data.current.name || "Your location";
+                            const { advice, siriSummary, highTemp, lowTemp } =
+                                getClothingAdvice(data);
+
+                            const city = data.city.name || "Your location";
                             const description =
-                                data.current.weather[0].description;
+                                data.forecast.list[0].weather[0].description;
                             let tempDisplay;
 
-                            // Use daily high/low for display if available, otherwise fallback to current temp
                             if (
-                                data.daily &&
-                                data.daily[0] &&
-                                data.daily[0].temp
+                                highTemp !== -Infinity &&
+                                lowTemp !== Infinity
                             ) {
-                                const highTemp = Math.round(
-                                    data.daily[0].temp.max,
-                                );
-                                const lowTemp = Math.round(
-                                    data.daily[0].temp.min,
-                                );
-                                tempDisplay = `High: ${highTemp}°C, Low: ${lowTemp}°C`;
+                                tempDisplay = `High: ${Math.round(highTemp)}°C, Low: ${Math.round(lowTemp)}°C`;
                             } else {
-                                const temp = Math.round(data.current.main.temp);
-                                tempDisplay = `${temp}°C`;
+                                tempDisplay = "N/A";
                             }
 
                             document.getElementById("weather").textContent =
                                 `${city}: ${description}, ${tempDisplay}`;
 
-                            const { advice, siriSummary } =
-                                getClothingAdvice(data);
                             document.getElementById("adviceIcons").innerHTML =
                                 advice
                                     .map(
