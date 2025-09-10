@@ -157,7 +157,7 @@
                     weatherData.daily[0] &&
                     weatherData.daily[0].weather &&
                     weatherData.daily[0].weather[0]
-                        ? weatherData.daily[0].weather[0].main
+                        ? weatherData.daily[0].weather[0].description
                         : description;
 
                 if (/rain|drizzle/i.test(precipDescription)) {
