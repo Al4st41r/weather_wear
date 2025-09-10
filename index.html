@@ -313,7 +313,7 @@
                             const { advice, siriSummary, highTemp, lowTemp } =
                                 getClothingAdvice(data);
 
-                            const city = data.city.name || "Your location";
+                            const city = data.current.name || "Your location";
                             const description =
                                 data.forecast.list[0].weather[0].description;
                             let tempDisplay;
